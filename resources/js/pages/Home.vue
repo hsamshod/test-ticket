@@ -36,7 +36,7 @@ const auth = computed(() => page.props.auth);
                 <div class="flex flex-row justify-center gap-4">
                     <a class="cursor-pointer border-1 p-12" :href="route('ticket.create')">via Web form</a>
 
-                    <a class="cursor-pointer border-1 p-12" target="_blank" :href="'https://t.me/vaccinecenters_bot?from=' + auth.user.id"
+                    <a class="cursor-pointer border-1 p-12" target="_blank" :href="'https://t.me/vaccinecenters_bot?start=' + auth.user.id"
                         >via Telegram</a
                     >
                 </div>

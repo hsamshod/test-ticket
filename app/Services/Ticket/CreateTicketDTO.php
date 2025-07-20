@@ -36,6 +36,19 @@ readonly class CreateTicketDTO
         );
     }
 
+    public static function fromTelegram(array $data): self
+    {
+        return new self(
+            $data['category_id'],
+            $data['subject'],
+            $data['message'],
+            Channel::TLGM,
+            Status::NEW,
+            $data['user_id'],
+            SenderType::USER,
+        );
+    }
+
     public function toTicketData(): array
     {
         return [
