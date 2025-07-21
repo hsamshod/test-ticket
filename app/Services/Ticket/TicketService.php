@@ -9,7 +9,7 @@ use App\Models\Ticket;
 
 class TicketService
 {
-    public function create(CreateTicketDTO $dto): void
+    public function create(CreateTicketDTO $dto): Ticket
     {
         try {
             \DB::beginTransaction();
@@ -20,6 +20,8 @@ class TicketService
             \DB::commit();
 
             event(new TicketCreated($ticket->id, $dto->sender_id));
+
+            return $ticket;
         } catch (\Exception $exception) {
             \DB::rollback();
 

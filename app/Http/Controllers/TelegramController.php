@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Ticket\CreateTicketDTO;
 use App\Services\Ticket\TicketService;
@@ -75,18 +76,18 @@ class TelegramController extends Controller
 
             if ($currentStatus === 'entering_message') {
                 try {
-                    $service->create(CreateTicketDTO::fromTelegram([
-                        $state['category_id'],
-                        $state['subject'],
-                        $message,
-                        $this->getUserByChatId($chatId)->id,
+                    $ticket = $service->create(CreateTicketDTO::fromTelegram([
+                        'category_id' => (int) $state['category_id'],
+                        'subject' => $state['subject'],
+                        'message' => $message,
+                        'user_id' => $this->getUserByChatId($chatId)->id,
                     ]));
+
                     Cache::forget('tg_state_' . $chatId);
-                } catch (ModelNotFoundException) {
+                    $this->sendTicketCreatedResponse($chatId, $ticket);
+                } catch (ModelNotFoundException $e) {
                     $this->sendMessage($chatId, 'Please, auth in website first!');
-                    return response()->json();
                 } catch (\Exception $e) {
-                    \Log::info($e->getMessage());
                     $this->sendMessage($chatId, 'Something went wrong, please, retry again!');
                 } finally {
                     return response()->json();
@@ -121,6 +122,11 @@ class TelegramController extends Controller
         \Cache::put('tg_state_' . $chatId, [
             'state' => 'selecting_category',
         ]);
+    }
+
+    private function sendTicketCreatedResponse(int $chatId, Ticket $ticket): void
+    {
+        $this->sendMessage($chatId, '✅ Ticket ' . $ticket->number . ' was created');
     }
 
     private function handleCategorySelection($chatId, $categoryId): void
