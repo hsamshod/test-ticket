@@ -6,7 +6,7 @@
 
 example:
 ```
-SLACK_BOT_WEBHOOK_TOKEN=https://hooks.slack.com/services/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
+SLACK_BOT_WEBHOOK_TOKEN=https://hooks.slack.com/services/.../.../...
 ```
 
 2/ configure telegram bot:

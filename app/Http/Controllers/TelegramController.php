@@ -34,7 +34,7 @@ class TelegramController extends Controller
                 if ($userId) {
                     try {
                         // bind user and their telegram
-                        $user = User::where($userId);
+                        $user = User::query()->findOrFail($userId);
                         $user->telegram_user_id = $update['message']['chat']['id'];
                         $user->save();
                     } catch (ModelNotFoundException) {
