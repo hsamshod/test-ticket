@@ -15,15 +15,15 @@ class CategorySeeder extends Seeder
         $categories = [
             [
                 'name' => 'Technical issues',
-                'slug' => 'technical_issues',
+                'slug' => 'TI',
             ],
             [
                 'name' => 'Payment issues',
-                'slug' => 'payment_issues',
+                'slug' => 'PI',
             ],
             [
                 'name' => 'Other',
-                'slug' => 'other',
+                'slug' => 'AT',
             ],
         ];
 
