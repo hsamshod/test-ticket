@@ -6,7 +6,7 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\SlackMessage;
+use Illuminate\Notifications\Slack\SlackMessage;
 use Illuminate\Notifications\Notification;
 
 class TicketCreatedNotification extends Notification implements ShouldQueue
@@ -32,6 +32,6 @@ class TicketCreatedNotification extends Notification implements ShouldQueue
         $message .= sprintf("Subject: *%s*\n", $this->data['subject']);
         $message .= sprintf("Category: *%s*", $this->data['category_name']);
 
-        return (new SlackMessage)->content($message);
+        return (new SlackMessage())->text($message);
     }
 }

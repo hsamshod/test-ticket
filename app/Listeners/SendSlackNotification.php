@@ -25,15 +25,15 @@ class SendSlackNotification implements ShouldQueue
     public function handle(TicketCreated $event): void
     {
         $ticket = Ticket::findOrFail($event->ticketId);
-        $user = User::find($event->userId);
+        $user = User::findOrFail($event->userId);
 
-        \Notification::route('slack', config('slack.notifications.ticket'))
+        \Notification::route('slack', config('services.slack.notifications.bot_webhook_token'))
             ->notify(new TicketCreatedNotification([
                 'user' => sprintf('%s (%s) ', $user->name, $user->email),
                 'ticket_id' => $ticket->id,
                 'channel' => $ticket->channel,
                 'subject' => $ticket->subject,
-                'category' => $ticket->category->name,
+                'category_name' => $ticket->category->name,
             ]));
     }
 }
