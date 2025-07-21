@@ -17,8 +17,7 @@ class CheckTelegramAuth
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (config('telegram.webhook_secret') !== $request->route('secret')) {
-            \Log::error('wrong webhook request');
+        if (config('services.telegram.webhook_secret') !== $request->route('secret')) {
             abort(403, 'Unauthorized telegram request');
         }
 

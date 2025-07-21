@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\Ticket\Channel;
-use App\Enums\Ticket\Status;
 use App\Models\Category;
 use App\Models\User;
 use App\Services\Ticket\CreateTicketDTO;
@@ -14,6 +12,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class TelegramController extends Controller
 {
@@ -22,25 +22,30 @@ class TelegramController extends Controller
         $update = $request->all();
         $chatId = $update['message']['chat']['id'] ?? $update['callback_query']['message']['chat']['id'] ?? null;
         $message = $update['message']['text'] ?? null;
+        $state = Cache::get('tg_state_' . $chatId);
+        $currentStatus = $state['state'] ?? null;
 
         if ($message) {
-            if (\Str::startsWith($message, '/start')) {
+            if (Str::startsWith($message, '/start')) {
                 $parts = explode(' ', $message);
                 $userId = $parts[1] ?? null;
 
-                if (!$userId) {
-                    $this->sendMessage($chatId, 'Please, auth in website first!');
-                    return response()->json();
-                }
-
-                try {
-                    // bind user and their telegram
-                    $user = User::findOrFail($userId);
-                    $user->telegram_chat_id = $update['message']['chat']['id'];
-                    $user->save();
-                } catch (ModelNotFoundException) {
-                    $this->sendMessage($chatId, 'Please, auth in website first!');
-                    return response()->json();
+                if ($userId) {
+                    try {
+                        // bind user and their telegram
+                        $user = User::where($userId);
+                        $user->telegram_user_id = $update['message']['chat']['id'];
+                        $user->save();
+                    } catch (ModelNotFoundException) {
+                        $this->sendMessage($chatId, 'Please, auth in website first!');
+                        return response()->json();
+                    }
+                } else {
+                    $user = $this->getUserByChatId($chatId);
+                    if (!$user) {
+                        $this->sendMessage($chatId, 'Please, auth in website first!');
+                        return response()->json();
+                    }
                 }
 
                 $this->sendCategorySelectionResponse($chatId);
@@ -57,28 +62,31 @@ class TelegramController extends Controller
                 }
             }
 
-            $state = Cache::get('tg_state_' . $chatId);
-            if ($state['status'] === 'entering_subject') {
+            if ($currentStatus === 'entering_subject') {
                 Cache::put('tg_state_' . $chatId, [
                     ...$state,
                     'subject' => $message,
                     'state' => 'entering_message',
                 ]);
+
+                $this->sendMessage($chatId, 'Please,️ enter a ticket description:');
+                return response()->json();
             }
 
-            if ($state['status'] === 'entering_message') {
+            if ($currentStatus === 'entering_message') {
                 try {
                     $service->create(CreateTicketDTO::fromTelegram([
                         $state['category_id'],
                         $state['subject'],
-                        $state['message'],
+                        $message,
                         $this->getUserByChatId($chatId)->id,
                     ]));
                     Cache::forget('tg_state_' . $chatId);
                 } catch (ModelNotFoundException) {
                     $this->sendMessage($chatId, 'Please, auth in website first!');
                     return response()->json();
-                } catch (\Exception) {
+                } catch (\Exception $e) {
+                    \Log::info($e->getMessage());
                     $this->sendMessage($chatId, 'Something went wrong, please, retry again!');
                 } finally {
                     return response()->json();
@@ -100,15 +108,14 @@ class TelegramController extends Controller
     {
         $categories = Category::all();
         $keyboard = [
-            'inline_keyboard' => $categories->map(fn(Category $category) => [
-                'text' => $category->name,
-                'callback_data' => $category->id
-            ]
-            )->toArray()
+            'inline_keyboard' => $categories->map(fn(Category $category) => [[
+                    'text' => $category->name,
+                    'callback_data' => (string) $category->id,
+                ]])->values()->toArray()
         ];
 
         $this->sendMessage($chatId, 'Please select a category:', [
-            'reply_markup' => json_encode($keyboard)
+            'reply_markup' => json_encode($keyboard),
         ]);
 
         \Cache::put('tg_state_' . $chatId, [
@@ -126,7 +133,7 @@ class TelegramController extends Controller
             return;
         }
 
-        $this->sendMessage($chatId, 'Plesase,️ enter a subject (max 2000 characters):');
+        $this->sendMessage($chatId, 'Please,️ enter a subject (max 200 characters):');
 
         Cache::put('tg_state_' . $chatId, [
             'state' => 'entering_subject',
@@ -134,9 +141,9 @@ class TelegramController extends Controller
         ]);
     }
 
-    private function sendMessage($chatId, $text, $extra = [])
+    private function sendMessage(int $chatId, string $text, $extra = [])
     {
-        \Http::post('https://api.telegram.org/bot'.config('telegram.bot_token').'/sendMessage', array_merge([
+        Http::post('https://api.telegram.org/bot' . config('services.telegram.bot_token') . '/sendMessage', array_merge([
             'chat_id' => $chatId,
             'text' => $text,
         ], $extra));
